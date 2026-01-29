@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Output directory
+out/
+
 # Generated data files
 *.csv
 *.json

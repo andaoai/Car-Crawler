@@ -8,6 +8,7 @@ import random
 import argparse
 import sys
 import io
+import os
 
 # 修复 Windows 控制台中文乱码问题
 if sys.platform == "win32":
@@ -354,14 +355,19 @@ def scrape_complaints(brand_id=0, series_id=0, model_id=0, max_pages=5):
         # 确保文件名合法（替换不合法字符）
         filename = filename.replace("/", "-").replace("\\", "-").replace(":", "")
 
-        with open(filename, "w", encoding="utf-8-sig", newline="") as f:
+        # 创建 out 目录
+        os.makedirs("out", exist_ok=True)
+
+        # 保存到 out 目录
+        filepath = os.path.join("out", filename)
+        with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "投诉编号", "投诉品牌", "投诉车系", "投诉车型",
                 "问题简述", "典型问题", "投诉时间", "投诉状态", "详情链接"
             ])
             writer.writeheader()
             writer.writerows(complaints_data)
-        print(f"数据已保存到 {filename}")
+        print(f"数据已保存到 {filepath}")
         return True
     else:
         print("没有获取到任何数据")
@@ -374,15 +380,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例用法:
-  uv run crawler_12365_zlts.py --brands                    # 列出所有可用品牌
-  uv run crawler_12365_zlts.py --series 525               # 查询小鹏汽车的车系列表
-  uv run crawler_12365_zlts.py --models 525 2820         # 查询小鹏汽车P7车系的具体车型列表
-  uv run crawler_12365_zlts.py                           # 抓取全部投诉（默认5页）
-  uv run crawler_12365_zlts.py --pages 10                # 抓取全部投诉10页
-  uv run crawler_12365_zlts.py --brand 43                # 抓取吉利汽车投诉
-  uv run crawler_12365_zlts.py --brand 4 --pages 20      # 抓取大众20页
-  uv run crawler_12365_zlts.py --brand 525 --series-id 2820    # 抓取小鹏汽车P7车系投诉
-  uv run crawler_12365_zlts.py --brand 525 --model-id 46068    # 抓取小鹏汽车某车型投诉
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --brands                    # 列出所有可用品牌
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --series 525               # 查询小鹏汽车的车系列表
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --models 525 2820         # 查询小鹏汽车P7车系的具体车型列表
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py                           # 抓取全部投诉（默认5页）
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --pages 10                # 抓取全部投诉10页
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --brand 43                # 抓取吉利汽车投诉
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --brand 4 --pages 20      # 抓取大众20页
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --brand 525 --series-id 2820    # 抓取小鹏汽车P7车系投诉
+  uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --brand 525 --model-id 46068    # 抓取小鹏汽车某车型投诉
         '''
     )
 

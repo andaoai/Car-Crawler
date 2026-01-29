@@ -7,6 +7,7 @@ import random
 import argparse
 import sys
 import io
+import os
 
 # 设置输出编码为 UTF-8
 if sys.platform == "win32":
@@ -236,13 +237,18 @@ def scrape_sales(max_pages=5):
         date_str = datetime.now().strftime("%Y%m%d")
         filename = f"销量排行_{date_str}.csv"
 
-        with open(filename, "w", encoding="utf-8-sig", newline="") as f:
+        # 创建 out 目录
+        os.makedirs("out", exist_ok=True)
+
+        # 保存到 out 目录
+        filepath = os.path.join("out", filename)
+        with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "排名", "车型", "销量", "厂商", "售价（万元）"
             ])
             writer.writeheader()
             writer.writerows(sales_data)
-        print(f"数据已保存到 {filename}")
+        print(f"数据已保存到 {filepath}")
         return True
     else:
         print("没有获取到任何数据")
@@ -255,9 +261,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例用法:
-  uv run crawler_16888_sales.py --brands              # 列出所有可用厂商
-  uv run crawler_16888_sales.py --sales               # 抓取销量数据（默认5页）
-  uv run crawler_16888_sales.py --sales --pages 10    # 抓取销量数据10页
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --brands              # 列出所有可用厂商
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales               # 抓取销量数据（默认5页）
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales --pages 10    # 抓取销量数据10页
         '''
     )
 
