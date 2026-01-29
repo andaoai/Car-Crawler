@@ -229,8 +229,8 @@ def main():
   uv run chezhiw.py --brands                    # 列出所有可用品牌
   uv run chezhiw.py                           # 抓取全部投诉（默认5页）
   uv run chezhiw.py --pages 10                # 抓取全部投诉10页
-  uv run chezhiw.py --brand 140                # 抓取吉利汽车投诉
-  uv run chezhiw.py --brand 4 --pages 20      # 抓取一汽-大众20页
+  uv run chezhiw.py --brand 43                # 抓取吉利汽车投诉
+  uv run chezhiw.py --brand 4 --pages 20      # 抓取大众20页
         '''
     )
 
