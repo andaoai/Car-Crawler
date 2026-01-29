@@ -9,13 +9,19 @@ import argparse
 
 BASE = "https://www.12365auto.com"
 
-session = requests.Session()
-session.headers.update({
+# 全局headers
+headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                   "(KHTML, like Gecko) Chrome/115.0 Safari/537.36",
     "Accept-Language": "zh-CN,zh;q=0.9",
-    "Referer": "https://www.12365auto.com/",
-})
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
+
+# 保留session用于其他不需要分页的请求
+session = requests.Session()
+session.headers.update(headers.copy())
+session.headers.update({"Referer": "https://www.12365auto.com/"})
 
 
 def get_brands_from_complaints():
@@ -55,7 +61,7 @@ def get_brands_from_complaints():
 def get_models_by_series(brand_id, series_id):
     """根据品牌ID和车系ID获取车型列表"""
     print(f"正在查询品牌ID {brand_id}，车系ID {series_id} 的车型...")
-    # URL结构: {brand_id}-{series_id}-0-0-0-0_0-0-0-0-0-0-0-0-1.shtml
+    # URL结构: {brand_id}-{series_id}-0-0-0-0_0-0-0-0-0-0-0-1.shtml
     URL = f"{BASE}/zlts/{brand_id}-{series_id}-0-0-0-0_0-0-0-0-0-0-0-0-1.shtml"
 
     try:
@@ -188,11 +194,12 @@ def scrape_complaints(brand_id=0, series_id=0, model_id=0, max_pages=5):
         model_id: 车型ID，0表示全部车型
         max_pages: 最大抓取页数
     """
-    # URL结构: {brand_id}-{series_id}-{model_id}-0-0-0_0-0-0-0-0-0-0-0-{page}.shtml
+    # URL结构: {brand_id}-{series_id}-{model_id}-0-0-0_0-0-0-0-0-0-0-{page}.shtml
     # 第1位: 品牌ID (brand_id)
     # 第2位: 车系ID (series_id) - 默认0表示全部车系
     # 第3位: 车型ID (model_id) - 默认0表示全部车型
-    LIST_URL_TEMPLATE = f"{BASE}/zlts/{brand_id}-{series_id}-{model_id}-0-0-0_0-0-0-0-0-0-0-0-{{page}}.shtml"
+    # _0 后面有8个0，然后是页码
+    LIST_URL_TEMPLATE = f"{BASE}/zlts/{brand_id}-{series_id}-{model_id}-0-0-0_0-0-0-0-0-0-0-{{page}}.shtml"
 
     complaints_data = []
     complaint_pattern = re.compile(r'//www\.12365auto\.com/zlts/\d{8}/\d+\.shtml$')
@@ -208,7 +215,15 @@ def scrape_complaints(brand_id=0, series_id=0, model_id=0, max_pages=5):
         print(f"\n========== 正在抓取第 {page_num}/{max_pages} 页 ==========")
 
         try:
-            r = session.get(url, timeout=15)
+            # 为每次请求创建新的headers，包含正确的Referer
+            request_headers = headers.copy()
+            if page_num > 1:
+                prev_url = LIST_URL_TEMPLATE.format(page=page_num - 1)
+                request_headers["Referer"] = prev_url
+            else:
+                request_headers["Referer"] = "https://www.12365auto.com/"
+
+            r = requests.get(url, headers=request_headers, timeout=15)
             r.encoding = r.apparent_encoding
             soup = BeautifulSoup(r.text, "lxml")
         except Exception as e:
