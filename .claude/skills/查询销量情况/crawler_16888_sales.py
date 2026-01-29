@@ -231,7 +231,11 @@ def scrape_sales(max_pages=5):
 
     # 保存到 CSV 文件
     if sales_data:
-        filename = "sales.csv"
+        # 生成有意义的文件名
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y%m%d")
+        filename = f"销量排行_{date_str}.csv"
+
         with open(filename, "w", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "排名", "车型", "销量", "厂商", "售价（万元）"

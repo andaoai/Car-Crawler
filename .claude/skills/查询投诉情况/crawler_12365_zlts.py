@@ -6,6 +6,13 @@ import re
 import csv
 import random
 import argparse
+import sys
+import io
+
+# 修复 Windows 控制台中文乱码问题
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 BASE = "https://www.12365auto.com"
 
@@ -194,6 +201,20 @@ def scrape_complaints(brand_id=0, series_id=0, model_id=0, max_pages=5):
         model_id: 车型ID，0表示全部车型
         max_pages: 最大抓取页数
     """
+    # 获取品牌和车系名称用于文件名
+    brand_name = "全部品牌"
+    series_name = ""
+
+    if brand_id > 0:
+        brands_data = get_brands_from_complaints()
+        # brands_data 已经是字典格式 {brand_id: brand_name}
+        brand_name = brands_data.get(str(brand_id), f"品牌{brand_id}")
+
+        if series_id > 0:
+            series_list = get_series_by_brand(brand_id)
+            # get_series_by_brand 返回字典格式 {series_id: series_name}
+            series_name = series_list.get(str(series_id), f"车系{series_id}")
+
     # URL结构: {brand_id}-{series_id}-{model_id}-0-0-0_0-0-0-0-0-0-0-{page}.shtml
     # 第1位: 品牌ID (brand_id)
     # 第2位: 车系ID (series_id) - 默认0表示全部车系
@@ -204,9 +225,8 @@ def scrape_complaints(brand_id=0, series_id=0, model_id=0, max_pages=5):
     complaints_data = []
     complaint_pattern = re.compile(r'//www\.12365auto\.com/zlts/\d{8}/\d+\.shtml$')
 
-    brand_name = "全部品牌" if brand_id == 0 else f"品牌ID={brand_id}"
     print(f"开始抓取投诉数据...")
-    print(f"当前配置: {brand_name}, 车系ID={series_id}, 车型ID={model_id}")
+    print(f"当前配置: {brand_name}, {series_name if series_name else f'车系ID={series_id}' if series_id > 0 else '全部车系'}, 车型ID={model_id}")
     print(f"将抓取第 1 到第 {max_pages} 页")
 
     # 遍历每一页
@@ -318,7 +338,22 @@ def scrape_complaints(brand_id=0, series_id=0, model_id=0, max_pages=5):
 
     # 保存到 CSV 文件
     if complaints_data:
-        filename = "complaints.csv"
+        # 生成有意义的文件名
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y%m%d")
+
+        # 构建文件名：投诉_品牌_车系_日期.csv
+        filename_parts = ["投诉"]
+        if brand_name != "全部品牌":
+            filename_parts.append(brand_name)
+            if series_name:
+                filename_parts.append(series_name)
+        filename_parts.append(date_str)
+
+        filename = "_".join(filename_parts) + ".csv"
+        # 确保文件名合法（替换不合法字符）
+        filename = filename.replace("/", "-").replace("\\", "-").replace(":", "")
+
         with open(filename, "w", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "投诉编号", "投诉品牌", "投诉车系", "投诉车型",

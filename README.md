@@ -226,16 +226,16 @@ uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales --pages 
 ```python
 import pandas as pd
 
-# 读取投诉数据
-df_complaints = pd.read_csv('complaints.csv')
+# 读取投诉数据（使用实际的文件名）
+df_complaints = pd.read_csv('投诉_小鹏汽车_小鹏P7_20250129.csv')
 
 # 分析示例
 print(f"总投诉数: {len(df_complaints)}")
 print(f"投诉状态分布:\n{df_complaints['投诉状态'].value_counts()}")
 print(f"最常见的5个问题:\n{df_complaints['典型问题'].value_counts().head(5)}")
 
-# 读取销量数据
-df_sales = pd.read_csv('sales.csv')
+# 读取销量数据（使用实际的文件名）
+df_sales = pd.read_csv('销量排行_20250129.csv')
 print(f"销量统计:\n{df_sales.describe()}")
 ```
 
@@ -253,9 +253,16 @@ print(f"销量统计:\n{df_sales.describe()}")
 
 ## 输出文件
 
-### 投诉数据（complaints.csv）
+### 投诉数据
 
-数据会保存到 `complaints.csv`，包含以下字段：
+文件名格式：`投诉_[品牌]_[车系]_[日期].csv`
+
+示例：
+- 全部品牌：`投诉_20250129.csv`
+- 特定品牌：`投诉_小鹏汽车_20250129.csv`
+- 特定车系：`投诉_小鹏汽车_小鹏P7_20250129.csv`
+
+包含以下字段：
 
 | 字段 | 说明 |
 |------|------|
@@ -269,9 +276,14 @@ print(f"销量统计:\n{df_sales.describe()}")
 | 投诉状态 | 处理状态 |
 | 详情链接 | 投诉详情页URL |
 
-### 销量数据（sales.csv）
+### 销量数据
 
-数据会保存到 `sales.csv`，包含以下字段：
+文件名格式：`销量排行_[日期].csv`
+
+示例：
+- `销量排行_20250129.csv`
+
+包含以下字段：
 
 | 字段 | 说明 |
 |------|------|
@@ -337,8 +349,8 @@ CarCrawler/
 ├── pyproject.toml         # 项目配置和依赖
 ├── uv.lock               # 锁定的依赖版本
 ├── CLAUDE.md             # Claude Code 项目说明
-├── complaints.csv        # 投诉数据输出
-├── sales.csv            # 销量数据输出
+├── 投诉_*.csv           # 投诉数据输出（自动生成文件名）
+├── 销量排行_*.csv       # 销量数据输出（自动生成文件名）
 └── README.md            # 项目文档
 ```
 
