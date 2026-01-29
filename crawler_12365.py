@@ -52,10 +52,11 @@ def get_brands_from_complaints():
         return {}
 
 
-def get_models_by_brand(brand_id):
-    """根据品牌ID获取车型列表"""
-    print(f"正在查询品牌ID {brand_id} 的车型...")
-    URL = f"{BASE}/zlts/{brand_id}-0-0-0-0-0_0-0-0-0-0-0-0-1.shtml"
+def get_models_by_series(brand_id, series_id):
+    """根据品牌ID和车系ID获取车型列表"""
+    print(f"正在查询品牌ID {brand_id}，车系ID {series_id} 的车型...")
+    # URL结构: {brand_id}-{series_id}-0-0-0-0_0-0-0-0-0-0-0-0-1.shtml
+    URL = f"{BASE}/zlts/{brand_id}-{series_id}-0-0-0-0_0-0-0-0-0-0-0-0-1.shtml"
 
     try:
         r = session.get(URL, timeout=15)
@@ -78,13 +79,19 @@ def get_models_by_brand(brand_id):
             tds = row.find_all("td")
             if len(tds) >= 4:
                 model = tds[3].get_text(strip=True)
-                # 从车系列的 td 中提取 mid 属性
-                series_td = tds[2]
-                model_id = series_td.get("mid", "")
+                # 从车型 td (tds[3]) 提取 mid 属性
+                model_id = tds[3].get("mid", "")
 
-                if model_id.isdigit() and model:
-                    if model_id not in models_seen:
-                        models_seen[model_id] = model
+                # 如果车型没有 mid，尝试从车系 td (tds[2]) 提取
+                if not model_id or not model_id.isdigit():
+                    model_id = tds[2].get("mid", "")
+
+                # 保存车型信息
+                if model:
+                    # 使用ID作为key（如果有），否则使用车型名称
+                    key = model_id if model_id.isdigit() else model
+                    if key not in models_seen:
+                        models_seen[key] = model
 
         return models_seen
     except Exception as e:
@@ -172,21 +179,27 @@ def list_brands():
             print(f"{bid:>6} | {name}")
 
 
-def scrape_complaints(brand_id=0, max_pages=5):
+def scrape_complaints(brand_id=0, series_id=0, model_id=0, max_pages=5):
     """抓取投诉数据
 
     Args:
         brand_id: 品牌ID，0表示全部品牌
+        series_id: 车系ID，0表示全部车系
+        model_id: 车型ID，0表示全部车型
         max_pages: 最大抓取页数
     """
-    LIST_URL_TEMPLATE = f"{BASE}/zlts/{brand_id}-0-0-0-0-0_0-0-0-0-0-0-0-{{page}}.shtml"
+    # URL结构: {brand_id}-{series_id}-{model_id}-0-0-0_0-0-0-0-0-0-0-0-{page}.shtml
+    # 第1位: 品牌ID (brand_id)
+    # 第2位: 车系ID (series_id) - 默认0表示全部车系
+    # 第3位: 车型ID (model_id) - 默认0表示全部车型
+    LIST_URL_TEMPLATE = f"{BASE}/zlts/{brand_id}-{series_id}-{model_id}-0-0-0_0-0-0-0-0-0-0-0-{{page}}.shtml"
 
     complaints_data = []
     complaint_pattern = re.compile(r'//www\.12365auto\.com/zlts/\d{8}/\d+\.shtml$')
 
     brand_name = "全部品牌" if brand_id == 0 else f"品牌ID={brand_id}"
     print(f"开始抓取投诉数据...")
-    print(f"当前配置: {brand_name}")
+    print(f"当前配置: {brand_name}, 车系ID={series_id}, 车型ID={model_id}")
     print(f"将抓取第 1 到第 {max_pages} 页")
 
     # 遍历每一页
@@ -311,13 +324,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例用法:
-  uv run chezhiw.py --brands                    # 列出所有可用品牌
-  uv run chezhiw.py --series 525               # 查询小鹏汽车的车系列表
-  uv run chezhiw.py --models 525               # 查询小鹏汽车的具体车型列表
-  uv run chezhiw.py                           # 抓取全部投诉（默认5页）
-  uv run chezhiw.py --pages 10                # 抓取全部投诉10页
-  uv run chezhiw.py --brand 43                # 抓取吉利汽车投诉
-  uv run chezhiw.py --brand 4 --pages 20      # 抓取大众20页
+  uv run crawler_12365.py --brands                    # 列出所有可用品牌
+  uv run crawler_12365.py --series 525               # 查询小鹏汽车的车系列表
+  uv run crawler_12365.py --models 525 2820         # 查询小鹏汽车P7车系的具体车型列表
+  uv run crawler_12365.py                           # 抓取全部投诉（默认5页）
+  uv run crawler_12365.py --pages 10                # 抓取全部投诉10页
+  uv run crawler_12365.py --brand 43                # 抓取吉利汽车投诉
+  uv run crawler_12365.py --brand 4 --pages 20      # 抓取大众20页
+  uv run crawler_12365.py --brand 525 --series-id 2820    # 抓取小鹏汽车P7车系投诉
+  uv run crawler_12365.py --brand 525 --model-id 46068    # 抓取小鹏汽车某车型投诉
         '''
     )
 
@@ -353,8 +368,25 @@ def main():
     parser.add_argument(
         '--models',
         type=int,
-        metavar='BRAND_ID',
-        help='查询指定品牌的具体车型列表'
+        nargs=2,
+        metavar=('BRAND_ID', 'SERIES_ID'),
+        help='查询指定品牌和车系的具体车型列表（需要两个参数：品牌ID和车系ID）'
+    )
+
+    parser.add_argument(
+        '--series-id',
+        type=int,
+        default=0,
+        metavar='SERIES_ID',
+        help='指定车系ID进行筛选（0=全部车系，默认：0）'
+    )
+
+    parser.add_argument(
+        '--model-id',
+        type=int,
+        default=0,
+        metavar='MODEL_ID',
+        help='指定车型ID进行筛选（0=全部车型，默认：0）'
     )
 
     args = parser.parse_args()
@@ -375,7 +407,8 @@ def main():
             print(f"\n品牌ID {args.series} 没有找到车系信息")
     elif args.models:
         # 查询车型列表
-        models = get_models_by_brand(args.models)
+        brand_id, series_id = args.models
+        models = get_models_by_series(brand_id, series_id)
         if models:
             print(f"\n找到 {len(models)} 个车型:\n")
             print("车型ID | 车型名称")
@@ -383,10 +416,15 @@ def main():
             for mid in sorted(models.keys(), key=lambda x: int(x) if x.isdigit() else 0):
                 print(f"{mid:>6} | {models[mid]}")
         else:
-            print(f"\n品牌ID {args.models} 没有找到车型信息")
+            print(f"\n品牌ID {brand_id}，车系ID {series_id} 没有找到车型信息")
     else:
         # 否则抓取投诉数据
-        scrape_complaints(brand_id=args.brand, max_pages=args.pages)
+        scrape_complaints(
+            brand_id=args.brand,
+            series_id=args.series_id,
+            model_id=args.model_id,
+            max_pages=args.pages
+        )
 
 
 if __name__ == "__main__":

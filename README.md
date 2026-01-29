@@ -26,13 +26,13 @@ uv sync
 ### 1. 查看帮助
 
 ```bash
-uv run chezhiw.py --help
+uv run crawler_12365.py --help
 ```
 
 ### 2. 列出所有可用品牌
 
 ```bash
-uv run chezhiw.py --brands
+uv run crawler_12365.py --brands
 ```
 
 输出示例：
@@ -43,32 +43,139 @@ uv run chezhiw.py --brands
      4 | 一汽-大众
      8 | 东风日产
     19 | 上汽大众
-    26  | 一汽奥迪
-   140  | 吉利汽车
+    26 | 一汽奥迪
+    43 | 吉利汽车
+   525 | 小鹏汽车
 ```
 
-### 3. 抓取投诉数据
+### 3. 查询车系和车型
+
+#### 查询指定品牌的车系列表
+
+```bash
+# 查询小鹏汽车的车系
+uv run crawler_12365.py --series 525
+```
+
+输出示例：
+```
+车系ID | 车系名称
+---------------------
+  3178 | 小鹏P7
+  3179 | 小鹏P5
+  3180 | 小鹏G3
+  3181 | 小鹏G9
+  3182 | 小鹏G6
+  ...
+```
+
+#### 查询指定车系的具体车型
+
+```bash
+# 查询小鹏P7车系的具体车型（需要品牌ID和车系ID两个参数）
+uv run crawler_12365.py --models 525 3178
+```
+
+输出示例：
+```
+车型ID | 车型名称
+---------------------
+ 12345 | 2020款 670E
+ 12346 | 2020款 706G
+ 12347 | 2021款 480E
+ 12348 | 2022款 480 标准续航 智行版
+ ...
+```
+
+### 4. 抓取投诉数据
 
 #### 抓取全部品牌（默认5页）
 
 ```bash
-uv run chezhiw.py
+uv run crawler_12365.py
 ```
 
 #### 抓取全部品牌10页
 
 ```bash
-uv run chezhiw.py --pages 10
+uv run crawler_12365.py --pages 10
 ```
 
 #### 抓取指定品牌
 
 ```bash
 # 抓取吉利汽车（品牌ID=43）
-uv run chezhiw.py --brand 43
+uv run crawler_12365.py --brand 43
 
 # 抓取一汽-大众（品牌ID=4）20页
-uv run chezhiw.py --brand 4 --pages 20
+uv run crawler_12365.py --brand 4 --pages 20
+```
+
+#### 按车系筛选
+
+```bash
+# 抓取小鹏汽车P7车系（品牌ID=525，车系ID=2820）的投诉
+uv run crawler_12365.py --brand 525 --series-id 2820
+```
+
+#### 按车型筛选
+
+```bash
+# 抓取小鹏汽车2020款 670E车型（品牌ID=525，车型ID=46068）的投诉
+uv run crawler_12365.py --brand 525 --model-id 46068
+```
+
+### 5. 使用流程示例
+
+完整的查询流程示例：
+
+```bash
+# 1. 首先列出所有品牌，找到小鹏汽车的ID
+uv run crawler_12365.py --brands
+# 输出：525 | 小鹏汽车
+
+# 2. 查询小鹏汽车的所有车系
+uv run crawler_12365.py --series 525
+# 输出：2820 | 小鹏P7
+#      3660 | 小鹏G6
+#      ...
+
+# 3. 查询小鹏P7车系的具体车型
+uv run crawler_12365.py --models 525 2820
+# 输出：46068 | 2020款 670E
+#      78226 | 2025款 702 长续航 Ultra
+#      ...
+
+# 4. 抓取小鹏P7车系的所有投诉
+uv run crawler_12365.py --brand 525 --series-id 2820 --pages 5
+
+# 5. 抓取特定车型（2020款 670E）的投诉
+uv run crawler_12365.py --brand 525 --model-id 46068 --pages 3
+```
+
+> ⚠️ **重要提示**：使用 `--series-id` 或 `--model-id` 时，请确保使用正确的ID。可以先通过 `--series` 和 `--models` 命令查询真实的ID值。
+
+完整的查询流程示例：
+
+```bash
+# 1. 首先列出所有品牌，找到小鹏汽车的ID
+uv run crawler_12365.py --brands
+# 输出：525 | 小鹏汽车
+
+# 2. 查询小鹏汽车的所有车系
+uv run crawler_12365.py --series 525
+# 输出：3178 | 小鹏P7
+#      3182 | 小鹏G6
+#      ...
+
+# 3. 查询小鹏P7车系的具体车型
+uv run crawler_12365.py --models 525 3178
+# 输出：12345 | 2020款 670E
+#      12346 | 2020款 706G
+#      ...
+
+# 4. 抓取小鹏P7车系的所有投诉
+uv run crawler_12365.py --brand 525 --series-id 2820 --pages 5
 ```
 
 ## 命令行参数
@@ -76,7 +183,11 @@ uv run chezhiw.py --brand 4 --pages 20
 | 参数 | 说明 |
 |------|------|
 | `--brands` | 列出所有可用品牌及其ID |
+| `--series BRAND_ID` | 查询指定品牌的车系列表 |
+| `--models BRAND_ID SERIES_ID` | 查询指定品牌和车系的具体车型列表（需要两个参数） |
 | `--brand ID` | 指定品牌ID进行查询（0=全部品牌，默认：0） |
+| `--series-id ID` | 指定车系ID进行筛选（0=全部车系，默认：0） |
+| `--model-id ID` | 指定车型ID进行筛选（0=全部车型，默认：0） |
 | `--pages N` | 抓取页数（默认：5） |
 
 ## 输出文件
@@ -113,9 +224,7 @@ uv run chezhiw.py --brand 4 --pages 20
  525    | 小鹏汽车
 ```
 
-> 💡 提示：运行 `uv run chezhiw.py --brands` 可以获取完整的 381 个品牌列表
-
-> 💡 提示：运行 `uv run chezhiw.py --brands` 可以获取完整的品牌列表
+> 💡 提示：运行 `uv run crawler_12365.py --brands` 可以获取完整的 381 个品牌列表
 
 ## 注意事项
 
