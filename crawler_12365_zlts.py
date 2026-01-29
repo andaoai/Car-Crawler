@@ -339,15 +339,15 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例用法:
-  uv run crawler_12365.py --brands                    # 列出所有可用品牌
-  uv run crawler_12365.py --series 525               # 查询小鹏汽车的车系列表
-  uv run crawler_12365.py --models 525 2820         # 查询小鹏汽车P7车系的具体车型列表
-  uv run crawler_12365.py                           # 抓取全部投诉（默认5页）
-  uv run crawler_12365.py --pages 10                # 抓取全部投诉10页
-  uv run crawler_12365.py --brand 43                # 抓取吉利汽车投诉
-  uv run crawler_12365.py --brand 4 --pages 20      # 抓取大众20页
-  uv run crawler_12365.py --brand 525 --series-id 2820    # 抓取小鹏汽车P7车系投诉
-  uv run crawler_12365.py --brand 525 --model-id 46068    # 抓取小鹏汽车某车型投诉
+  uv run crawler_12365_zlts.py --brands                    # 列出所有可用品牌
+  uv run crawler_12365_zlts.py --series 525               # 查询小鹏汽车的车系列表
+  uv run crawler_12365_zlts.py --models 525 2820         # 查询小鹏汽车P7车系的具体车型列表
+  uv run crawler_12365_zlts.py                           # 抓取全部投诉（默认5页）
+  uv run crawler_12365_zlts.py --pages 10                # 抓取全部投诉10页
+  uv run crawler_12365_zlts.py --brand 43                # 抓取吉利汽车投诉
+  uv run crawler_12365_zlts.py --brand 4 --pages 20      # 抓取大众20页
+  uv run crawler_12365_zlts.py --brand 525 --series-id 2820    # 抓取小鹏汽车P7车系投诉
+  uv run crawler_12365_zlts.py --brand 525 --model-id 46068    # 抓取小鹏汽车某车型投诉
         '''
     )
 
