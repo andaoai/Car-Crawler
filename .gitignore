@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Generated data files
+*.csv
+*.json
+*.xlsx
+*.xls
+
+# Temporary files
+*.html
+*.htm
+page*.html
+detail_page.html
+
+# UV lock file
+uv.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
