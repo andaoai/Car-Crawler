@@ -94,7 +94,7 @@ def scrape_complaints(brand_id=0, max_pages=5):
         brand_id: 品牌ID，0表示全部品牌
         max_pages: 最大抓取页数
     """
-    LIST_URL_TEMPLATE = f"{BASE}/zlts/{brand_id}-0-0-0-0-0_0-0-0-1-0-0-0-{{page}}.shtml"
+    LIST_URL_TEMPLATE = f"{BASE}/zlts/{brand_id}-0-0-0-0-0_0-0-0-0-0-0-0-{{page}}.shtml"
 
     complaints_data = []
     complaint_pattern = re.compile(r'//www\.12365auto\.com/zlts/\d{8}/\d+\.shtml$')
