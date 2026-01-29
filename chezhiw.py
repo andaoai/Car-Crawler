@@ -52,6 +52,46 @@ def get_brands_from_complaints():
         return {}
 
 
+def get_models_by_brand(brand_id):
+    """根据品牌ID获取车型列表"""
+    print(f"正在查询品牌ID {brand_id} 的车型...")
+    URL = f"{BASE}/zlts/{brand_id}-0-0-0-0-0_0-0-0-0-0-0-0-1.shtml"
+
+    try:
+        r = session.get(URL, timeout=15)
+        r.encoding = r.apparent_encoding
+        soup = BeautifulSoup(r.text, "lxml")
+
+        # 从投诉列表中提取车型
+        tslb_div = soup.find("div", class_="tslb_b")
+        if not tslb_div:
+            return {}
+
+        table = tslb_div.find("table")
+        if not table:
+            return {}
+
+        rows = table.find_all("tr")
+        models_seen = {}
+
+        for row in rows[1:]:  # 跳过表头
+            tds = row.find_all("td")
+            if len(tds) >= 4:
+                model = tds[3].get_text(strip=True)
+                # 从车系列的 td 中提取 mid 属性
+                series_td = tds[2]
+                model_id = series_td.get("mid", "")
+
+                if model_id.isdigit() and model:
+                    if model_id not in models_seen:
+                        models_seen[model_id] = model
+
+        return models_seen
+    except Exception as e:
+        print(f"提取车型信息失败: {e}")
+        return {}
+
+
 def get_series_by_brand(brand_id):
     """根据品牌ID获取车系列表"""
     print(f"正在查询品牌ID {brand_id} 的车系...")
@@ -273,6 +313,7 @@ def main():
 示例用法:
   uv run chezhiw.py --brands                    # 列出所有可用品牌
   uv run chezhiw.py --series 525               # 查询小鹏汽车的车系列表
+  uv run chezhiw.py --models 525               # 查询小鹏汽车的具体车型列表
   uv run chezhiw.py                           # 抓取全部投诉（默认5页）
   uv run chezhiw.py --pages 10                # 抓取全部投诉10页
   uv run chezhiw.py --brand 43                # 抓取吉利汽车投诉
@@ -309,6 +350,13 @@ def main():
         help='查询指定品牌的车系列表'
     )
 
+    parser.add_argument(
+        '--models',
+        type=int,
+        metavar='BRAND_ID',
+        help='查询指定品牌的具体车型列表'
+    )
+
     args = parser.parse_args()
 
     # 如果指定了 --brands，只列出品牌
@@ -325,6 +373,17 @@ def main():
                 print(f"{sid:>6} | {series[sid]}")
         else:
             print(f"\n品牌ID {args.series} 没有找到车系信息")
+    elif args.models:
+        # 查询车型列表
+        models = get_models_by_brand(args.models)
+        if models:
+            print(f"\n找到 {len(models)} 个车型:\n")
+            print("车型ID | 车型名称")
+            print("-" * 60)
+            for mid in sorted(models.keys(), key=lambda x: int(x) if x.isdigit() else 0):
+                print(f"{mid:>6} | {models[mid]}")
+        else:
+            print(f"\n品牌ID {args.models} 没有找到车型信息")
     else:
         # 否则抓取投诉数据
         scrape_complaints(brand_id=args.brand, max_pages=args.pages)
