@@ -19,44 +19,32 @@ session.headers.update({
 
 
 def get_brands_from_complaints():
-    """从投诉页面中提取品牌信息"""
-    print("正在从投诉页面提取品牌信息...")
-    URL = f"{BASE}/zlts/0-0-0-0-0-0_0-0-0-1-0-0-0-1.shtml"
+    """从车型大全页面中提取品牌信息"""
+    print("正在从车型大全页面提取品牌信息...")
+    # 车型大全页面URL
+    URL = f"{BASE}/list/models-0-1-1-0-0-0-0-0-0-0-0-0-0.shtml"
 
     try:
         r = session.get(URL, timeout=15)
         r.encoding = r.apparent_encoding
         soup = BeautifulSoup(r.text, "lxml")
 
-        tslb_div = soup.find("div", class_="tslb_b")
-        if not tslb_div:
-            print("未找到投诉列表")
-            return {}
+        # 查找所有品牌链接
+        brand_links = soup.find_all("a", href=lambda x: x and "brand-" in x)
 
-        table = tslb_div.find("table")
-        if not table:
-            return {}
-
-        rows = table.find_all("tr")
         brands_seen = {}
+        for link in brand_links:
+            href = link.get("href", "")
+            brand_name = link.get_text(strip=True)
 
-        for row in rows[1:]:  # 跳过表头
-            tds = row.find_all("td")
-            if len(tds) >= 2:
-                brand = tds[1].get_text(strip=True)
-                # 从链接中提取品牌ID
-                link = tds[1].find("a", href=True)
-                if link:
-                    href = link.get("href", "")
-                    # 格式: //www.12365auto.com/list/brand-{id}-{series_id}-0-1.shtml
-                    if "brand-" in href:
-                        parts = href.split("brand-")
-                        if len(parts) > 1:
-                            brand_part = parts[1].split("-")[0]
-                            if brand_part.isdigit():
-                                brand_id = brand_part
-                                if brand not in brands_seen:
-                                    brands_seen[brand] = brand_id
+            # 从链接提取品牌ID
+            if "brand-" in href:
+                parts = href.split("brand-")
+                if len(parts) > 1:
+                    brand_id = parts[1].split("-")[0]
+                    if brand_id.isdigit() and brand_name:
+                        if brand_id not in brands_seen:
+                            brands_seen[brand_id] = brand_name
 
         return brands_seen
     except Exception as e:
