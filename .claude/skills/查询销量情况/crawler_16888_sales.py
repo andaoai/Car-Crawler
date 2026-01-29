@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # 汽车销量爬虫 - 从车主之家抓取销量数据
 import requests
 from bs4 import BeautifulSoup
@@ -8,10 +9,12 @@ import argparse
 import sys
 import io
 import os
+import json
 
-# 设置输出编码为 UTF-8
+# 修复 Windows 控制台中文乱码问题
 if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 BASE = "https://xl.16888.com"
 
@@ -30,136 +33,203 @@ session.headers.update(headers.copy())
 session.headers.update({"Referer": "https://xl.16888.com/"})
 
 
-def get_brands_from_table():
-    """从销量表格中提取品牌/厂商信息"""
-    print("正在从销量表格中提取厂商信息...")
-    URL = f"{BASE}/style.html"
-
+def api_request(endpoint):
+    """API 请求封装"""
+    url = f"{BASE}{endpoint}"
+    request_headers = headers.copy()
+    request_headers["Referer"] = f"{BASE}/style.html"
     try:
-        r = session.get(URL, timeout=15)
+        r = requests.get(url, headers=request_headers, timeout=15)
         r.encoding = r.apparent_encoding
-        soup = BeautifulSoup(r.text, "lxml")
-
-        # 查找销量表格
-        table = soup.find("table")
-        if not table:
-            print("未找到销量表格")
-            return {}
-
-        # 提取厂商信息（第4列）
-        rows = table.find_all("tr")
-        manufacturers_seen = {}
-        manufacturer_id = 1
-
-        for row in rows[1:]:  # 跳过表头
-            tds = row.find_all("td")
-            if len(tds) >= 4:
-                manufacturer = tds[3].get_text(strip=True)  # 第4列是厂商
-                if manufacturer and manufacturer not in manufacturers_seen:
-                    manufacturers_seen[str(manufacturer_id)] = manufacturer
-                    manufacturer_id += 1
-
-        return manufacturers_seen
-
+        return r.json()
     except Exception as e:
-        print(f"提取厂商信息失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return {}
+        print(f"API 请求失败: {e}")
+        return None
 
 
 def get_brands():
-    """从车型销量页面提取品牌信息"""
-    print("正在从车型销量页面提取品牌信息...")
-    URL = f"{BASE}/style.html"
+    """获取所有品牌"""
+    print("正在获取品牌列表...")
+    data = api_request("/xl.php?mod=api&extra=getCarBrand")
+    if data and data.get("ret") == "ok":
+        brands = []
+        for group in data.get("data", []):
+            brands.extend(group.get("list", []))
+        return {b["cat_id"]: b["title"] for b in brands}
+    return {}
 
-    try:
-        r = session.get(URL, timeout=15)
-        r.encoding = r.apparent_encoding
-        soup = BeautifulSoup(r.text, "lxml")
 
-        # 查找品牌选择器
-        brand_select = soup.find("div", class_="i-select i-select-brand J_c_brand")
+def get_facturers(brand_id):
+    """获取指定品牌的厂商列表"""
+    data = api_request(f"/xl.php?mod=api&extra=getCarBrand&bid={brand_id}")
+    if data and data.get("ret") == "ok":
+        factories = []
+        data_list = data.get("data")
+        if not isinstance(data_list, list):
+            return {}
+        for group in data_list:
+            factories.extend(group.get("list", []))
+        return {f["cat_id"]: f["title"] for f in factories}
+    return {}
 
-        if not brand_select:
-            print("未找到品牌选择器，使用销量表格中的厂商信息...")
-            return get_brands_from_table()
 
-        # 查找所有品牌选项（可能是 a 标签或 li 标签）
-        brands_seen = {}
-
-        # 尝试查找链接
-        brand_items = brand_select.find_all("a", href=True)
-        if not brand_items:
-            # 如果没有链接，尝试查找 li 标签
-            brand_items = brand_select.find_all("li")
-
-        for item in brand_items:
-            href = item.get("href", "")
-            brand_name = item.get_text(strip=True)
-
-            # 从链接提取品牌ID
-            # 格式可能是: /style/b123-0-0-0-0-0-1.html 或类似
-            if href and ("/style/" in href or "b" in href):
-                # 尝试提取品牌ID
-                import re
-                match = re.search(r'b(\d+)', href)
-
-                if match:
-                    brand_id = match.group(1)
-                    if brand_id.isdigit() and brand_name:
-                        if brand_id not in brands_seen:
-                            brands_seen[brand_id] = brand_name
-
-            # 如果没有链接但有品牌名称，可能使用 data-id 属性
-            elif brand_name:
-                brand_id = item.get("data-id", "")
-                value_attr = item.get("value", "")
-                if brand_id.isdigit():
-                    if brand_id not in brands_seen:
-                        brands_seen[brand_id] = brand_name
-                elif value_attr.isdigit():
-                    if value_attr not in brands_seen:
-                        brands_seen[value_attr] = brand_name
-
-        if brands_seen:
-            return brands_seen
-        else:
-            print("品牌选择器为空，使用销量表格中的厂商信息...")
-            return get_brands_from_table()
-
-    except Exception as e:
-        print(f"提取品牌信息失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return {}
+def get_series(factory_id):
+    """获取指定厂商的车型列表"""
+    data = api_request(f"/xl.php?mod=api&extra=getCarBrand&fid={factory_id}")
+    if data and data.get("ret") == "ok":
+        models = data.get("data", {}).get("list", [])
+        return {m["cat_id"]: m["title"] for m in models}
+    return {}
 
 
 def list_brands():
     """列出所有可用品牌"""
     brands = get_brands()
-
     if brands:
-        print(f"\n找到 {len(brands)} 个厂商:\n")
-        print("厂商ID | 厂商名称")
-        print("-" * 60)
-
-        # 按ID排序
-        for bid in sorted(brands.keys(), key=lambda x: int(x) if x.isdigit() else 0):
-            print(f"{bid:>6} | {brands[bid]}")
+        print(f"\n找到 {len(brands)} 个品牌:\n")
+        print("品牌ID  | 品牌名称")
+        print("-" * 80)
+        for bid in sorted(brands.keys(), key=lambda x: brands[x]):
+            print(f"{bid:>8} | {brands[bid]}")
     else:
-        print("未能从页面提取厂商信息")
+        print("未能获取品牌信息")
+
+
+def list_facturers(brand_id):
+    """列出指定品牌的厂商"""
+    brands = get_brands()
+    if brand_id not in brands:
+        print(f"品牌ID {brand_id} 不存在")
+        return
+
+    print(f"\n品牌: {brands[brand_id]}")
+    facturers = get_facturers(brand_id)
+    if facturers:
+        print(f"找到 {len(facturers)} 个厂商:\n")
+        print("厂商ID  | 厂商名称")
+        print("-" * 80)
+        for fid in sorted(facturers.keys(), key=lambda x: facturers[x]):
+            print(f"{fid:>8} | {facturers[fid]}")
+    else:
+        print("未能获取厂商信息")
+
+
+def list_series(factory_id):
+    """列出指定厂商的车型"""
+    # 首先需要获取品牌列表来查找厂商
+    brands = get_brands()
+    factory_name = None
+    brand_name = None
+
+    # 遍历所有品牌找到这个厂商
+    for bid in brands:
+        facturers = get_facturers(bid)
+        if factory_id in facturers:
+            factory_name = facturers[factory_id]
+            brand_name = brands[bid]
+            break
+
+    if not factory_name:
+        print(f"厂商ID {factory_id} 不存在")
+        return
+
+    print(f"\n品牌: {brand_name}")
+    print(f"厂商: {factory_name}")
+
+    series = get_series(factory_id)
+    if series:
+        print(f"找到 {len(series)} 个车型:\n")
+        print("车型ID  | 车型名称")
+        print("-" * 80)
+        for sid in sorted(series.keys(), key=lambda x: series[x]):
+            print(f"{sid:>8} | {series[sid]}")
+    else:
+        print("未能获取车型信息")
+
+
+def scrape_model_sales(series_id, series_name):
+    """抓取指定车型的历史销量数据
+
+    Args:
+        series_id: 车型ID
+        series_name: 车型名称
+    """
+    sales_data = []
+    url = f"{BASE}/s/{series_id}/"
+
+    print(f"\n正在抓取车型销量: {series_name}")
+    print(f"URL: {url}")
+
+    try:
+        request_headers = headers.copy()
+        request_headers["Referer"] = f"{BASE}/style.html"
+
+        r = requests.get(url, headers=request_headers, timeout=15)
+        r.encoding = r.apparent_encoding
+        soup = BeautifulSoup(r.text, "lxml")
+    except Exception as e:
+        print(f"获取页面失败: {e}")
+        return False
+
+    # 找到销量表格
+    table = soup.find("table")
+    if not table:
+        print("未找到销量表格")
+        return False
+
+    rows = table.find_all("tr")
+    print(f"找到 {len(rows) - 1} 条销量记录")
+
+    for row in rows[1:]:  # 跳过表头
+        tds = row.find_all("td")
+        if not tds or len(tds) < 4:
+            continue
+
+        # 提取销量信息
+        month = tds[0].get_text(strip=True)  # 月份
+        sales = tds[1].get_text(strip=True)  # 销量
+        change = tds[2].get_text(strip=True)  # 环比变化
+
+        # 保存数据
+        sales_record = {
+            "月份": month,
+            "销量": sales,
+            "环比": change,
+        }
+
+        sales_data.append(sales_record)
+
+    # 保存到 CSV 文件
+    if sales_data:
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y%m%d")
+        filename = f"{series_name}_销量_{date_str}.csv"
+
+        os.makedirs("out", exist_ok=True)
+        filepath = os.path.join("out", filename)
+
+        with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["月份", "销量", "环比"])
+            writer.writeheader()
+            writer.writerows(sales_data)
+
+        print(f"\n数据已保存到 {filepath}")
+        print(f"共 {len(sales_data)} 条记录")
+        return True
+    else:
+        print("没有获取到任何数据")
+        return False
 
 
 def scrape_sales(max_pages=5):
-    """抓取销量数据
+    """抓取车型销量排行
 
     Args:
         max_pages: 最大抓取页数
     """
     sales_data = []
 
-    print(f"开始抓取销量数据...")
+    print(f"开始抓取车型销量排行...")
     print(f"将抓取第 1 到第 {max_pages} 页")
 
     # 遍历每一页
@@ -232,22 +302,20 @@ def scrape_sales(max_pages=5):
 
     # 保存到 CSV 文件
     if sales_data:
-        # 生成有意义的文件名
         from datetime import datetime
         date_str = datetime.now().strftime("%Y%m%d")
         filename = f"销量排行_{date_str}.csv"
 
-        # 创建 out 目录
         os.makedirs("out", exist_ok=True)
-
-        # 保存到 out 目录
         filepath = os.path.join("out", filename)
+
         with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=[
                 "排名", "车型", "销量", "厂商", "售价（万元）"
             ])
             writer.writeheader()
             writer.writerows(sales_data)
+
         print(f"数据已保存到 {filepath}")
         return True
     else:
@@ -261,22 +329,64 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例用法:
-  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --brands              # 列出所有可用厂商
-  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales               # 抓取销量数据（默认5页）
-  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales --pages 10    # 抓取销量数据10页
+  # 查看所有品牌
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --brands
+
+  # 查看指定品牌的厂商
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --facturers 57328
+
+  # 查看指定厂商的车型
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --series 57329
+
+  # 查询指定车型的历史销量
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --model 129054 --name "秦PLUS"
+
+  # 抓取销量排行（默认5页）
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales
+
+  # 抓取销量排行10页
+  uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales --pages 10
         '''
     )
 
     parser.add_argument(
         '--brands',
         action='store_true',
-        help='列出所有可用厂商及其ID'
+        help='列出所有可用品牌及其ID'
+    )
+
+    parser.add_argument(
+        '--facturers',
+        type=str,
+        metavar='BRAND_ID',
+        help='列出指定品牌的厂商及其ID'
+    )
+
+    parser.add_argument(
+        '--series',
+        type=str,
+        metavar='FACTURER_ID',
+        help='列出指定厂商的车型及其ID'
+    )
+
+    parser.add_argument(
+        '--model',
+        type=str,
+        metavar='SERIES_ID',
+        help='查询指定车型的历史销量数据（需要配合 --name 使用）'
+    )
+
+    parser.add_argument(
+        '--name',
+        type=str,
+        metavar='MODEL_NAME',
+        help='车型名称（用于输出文件命名）'
     )
 
     parser.add_argument(
         '--sales',
         action='store_true',
-        help='抓取销量数据'
+        help='抓取车型销量排行数据'
     )
 
     parser.add_argument(
@@ -289,15 +399,27 @@ def main():
 
     args = parser.parse_args()
 
-    # 如果指定了 --brands，只列出厂商
-    if args.brands:
+    # 如果指定了 --model，查询车型历史销量
+    if args.model:
+        if not args.name:
+            print("错误: 使用 --model 时必须指定 --name 参数")
+            return
+        scrape_model_sales(args.model, args.name)
+    # 如果指定了 --series，列出车型
+    elif args.series:
+        list_series(args.series)
+    # 如果指定了 --facturers，列出厂商
+    elif args.facturers:
+        list_facturers(args.facturers)
+    # 如果指定了 --brands，列出品牌
+    elif args.brands:
         list_brands()
+    # 如果指定了 --sales，抓取销量排行
     elif args.sales:
-        # 抓取销量数据
         scrape_sales(max_pages=args.pages)
     else:
-        # 默认列出厂商
-        print("默认列出可用厂商")
+        # 默认列出品牌
+        print("默认列出可用品牌")
         list_brands()
 
 
