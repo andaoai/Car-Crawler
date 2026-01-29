@@ -52,25 +52,6 @@ def get_brands_from_complaints():
         return {}
 
 
-def test_brand_id(brand_id):
-    """测试品牌ID是否有效并返回投诉数量"""
-    URL = f"{BASE}/zlts/{brand_id}-0-0-0-0-0_0-0-0-1-0-0-0-1.shtml"
-
-    try:
-        r = session.get(URL, timeout=10)
-        if r.status_code == 200:
-            soup = BeautifulSoup(r.text, "lxml")
-            tslb_div = soup.find("div", class_="tslb_b")
-            if tslb_div:
-                table = tslb_div.find("table")
-                if table:
-                    rows = table.find_all("tr")
-                    return len(rows) - 1
-        return 0
-    except:
-        return 0
-
-
 def list_brands():
     """列出所有可用品牌"""
     brands = get_brands_from_complaints()
@@ -81,9 +62,8 @@ def list_brands():
         print("-" * 60)
 
         # 按ID排序
-        for name, bid in sorted(brands.items(), key=lambda x: int(x[1]) if x[1].isdigit() else 0):
-            count = test_brand_id(bid)
-            print(f"{bid:>6} | {name:<20} (约{count}条投诉)")
+        for bid in sorted(brands.keys(), key=lambda x: int(x) if x.isdigit() else 0):
+            print(f"{bid:>6} | {brands[bid]}")
     else:
         print("未能从页面提取品牌信息")
         print("\n常用品牌ID参考:")
