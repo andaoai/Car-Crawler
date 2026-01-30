@@ -182,19 +182,25 @@ def scrape_model_sales(series_id, series_name):
 
     for row in rows[1:]:  # 跳过表头
         tds = row.find_all("td")
-        if not tds or len(tds) < 4:
+        if not tds or len(tds) < 6:
             continue
 
         # 提取销量信息
         month = tds[0].get_text(strip=True)  # 月份
         sales = tds[1].get_text(strip=True)  # 销量
-        change = tds[2].get_text(strip=True)  # 环比变化
+        ranking = tds[2].get_text(strip=True)  # 当月销量排名
+        maker_share = tds[3].get_text(strip=True)  # 占厂商份额
+        maker_ranking = tds[4].get_text(strip=True)  # 在厂商排名
+        segment_ranking = tds[5].get_text(strip=True)  # 在中型车排名
 
         # 保存数据
         sales_record = {
             "月份": month,
             "销量": sales,
-            "环比": change,
+            "当月排名": ranking,
+            "占厂商份额": maker_share,
+            "在厂商排名": maker_ranking,
+            "在中型车排名": segment_ranking,
         }
 
         sales_data.append(sales_record)
@@ -209,7 +215,7 @@ def scrape_model_sales(series_id, series_name):
         filepath = os.path.join("out", filename)
 
         with open(filepath, "w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["月份", "销量", "环比"])
+            writer = csv.DictWriter(f, fieldnames=["月份", "销量", "当月排名", "占厂商份额", "在厂商排名", "在中型车排名"])
             writer.writeheader()
             writer.writerows(sales_data)
 
