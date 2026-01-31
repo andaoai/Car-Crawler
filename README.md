@@ -22,6 +22,13 @@ CarCrawler 是一个专注于汽车领域的数据爬虫工具，旨在帮助用
 - 数据来源：车主之家（16888.com）
 - 包含销量、排名、厂商、品牌等详细信息
 
+### 3. 汽车召回新闻查询
+
+- 支持查询全部召回新闻
+- 支持按关键词搜索（品牌名、车型等）
+- 数据来源：国家市场监督管理总局（qxzh.samr.gov.cn）
+- 包含新闻标题、发布时间、涉及品牌、详情链接等官方权威数据
+
 ### 数据分析应用
 
 采集的数据可用于：
@@ -63,6 +70,19 @@ uv run .claude/skills/查询投诉情况/crawler_12365_zlts.py --brand 525 --ser
 ```bash
 # 1. 查询销量排行
 uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales --pages 5
+```
+
+### 汽车召回新闻查询
+
+```bash
+# 1. 查询全部召回新闻
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py
+
+# 2. 按关键词搜索召回新闻
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py --keyword "奔驰"
+
+# 3. 抓取更多页数
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py --keyword "特斯拉" --pages 10
 ```
 
 ## 详细使用方法
@@ -219,6 +239,41 @@ uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales
 uv run .claude/skills/查询销量情况/crawler_16888_sales.py --sales --pages 10
 ```
 
+### 汽车召回新闻查询
+
+#### 查询全部召回新闻
+
+```bash
+# 查询全部召回新闻（默认5页）
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py
+
+# 查询全部召回新闻（指定页数）
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py --pages 10
+```
+
+#### 按关键词搜索
+
+```bash
+# 搜索特定品牌的召回新闻
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py --keyword "奔驰"
+
+# 搜索特定车型的召回新闻
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py --keyword "Model Y"
+
+# 按日期筛选
+uv run .claude/skills/查询召回新闻/crawler_samr_recall.py --keyword "比亚迪" --start-date "2024-01-01" --end-date "2024-12-31"
+```
+
+#### 命令行参数
+
+| 参数 | 说明 | 示例 |
+|------|------|------|
+| `--keyword` | 搜索关键词（品牌名、车型等） | `--keyword "奔驰"` |
+| `--pages` | 抓取页数（默认5） | `--pages 10` |
+| `--page-size` | 每页数量（默认20） | `--page-size 50` |
+| `--start-date` | 起始日期（YYYY-MM-DD） | `--start-date "2024-01-01"` |
+| `--end-date` | 结束日期（YYYY-MM-DD） | `--end-date "2024-12-31"` |
+
 ## 数据分析应用示例
 
 采集的 CSV 数据可用于以下分析场景：
@@ -297,6 +352,25 @@ print(f"销量统计:\n{df_sales.describe()}")
 | 排名 | 销量排名 |
 | 时间 | 统计时间 |
 
+### 召回新闻数据
+
+文件名格式：`召回新闻_[关键词]_[日期].csv`
+
+示例：
+- 全部召回：`out/召回新闻_20250131.csv`
+- 品牌筛选：`out/召回新闻_奔驰_20250131.csv`
+- 车型筛选：`out/召回新闻_ModelY_20250131.csv`
+
+包含以下字段：
+
+| 字段 | 说明 |
+|------|------|
+| 新闻标题 | 召回新闻的标题 |
+| 发布时间 | 召回公告发布的日期 |
+| 涉及品牌 | 被召回的汽车品牌 |
+| 一级总成 | 缺陷描述或涉及的部件 |
+| 详情链接 | 召回新闻详情页的完整URL |
+
 ## 常见品牌ID参考
 
 ```
@@ -343,14 +417,18 @@ CarCrawler/
 │       ├── 查询投诉情况/
 │       │   ├── SKILL.md
 │       │   └── crawler_12365_zlts.py
-│       └── 查询销量情况/
+│       ├── 查询销量情况/
+│       │   ├── SKILL.md
+│       │   ├── SKILL.yaml
+│       │   └── crawler_16888_sales.py
+│       └── 查询召回新闻/
 │           ├── SKILL.md
-│           ├── SKILL.yaml
-│           └── crawler_16888_sales.py
+│           └── crawler_samr_recall.py
 ├── .venv/                 # uv 创建的虚拟环境
 ├── out/                   # 输出文件目录
 │   ├── 投诉_*.csv        # 投诉数据输出（自动生成文件名）
-│   └── 销量排行_*.csv    # 销量数据输出（自动生成文件名）
+│   ├── 销量排行_*.csv    # 销量数据输出（自动生成文件名）
+│   └── 召回新闻_*.csv   # 召回新闻数据输出（自动生成文件名）
 ├── pyproject.toml         # 项目配置和依赖
 ├── uv.lock               # 锁定的依赖版本
 ├── CLAUDE.md             # Claude Code 项目说明
@@ -365,6 +443,7 @@ MIT License
 
 - [车质网](https://www.12365auto.com/) - 汽车投诉数据来源
 - [车主之家](https://www.16888.com/) - 汽车销量数据来源
+- [国家市场监督管理总局](https://qxzh.samr.gov.cn/) - 汽车召回新闻数据来源（官方权威）
 - [uv 文档](https://github.com/astral-sh/uv) - Python 包管理器
 
 ## 未来规划
